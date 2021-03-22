@@ -1,0 +1,13 @@
+#! /usr/bin/env ruby
+require 'pg'
+
+db = PG.connect(dbname: 'cli_app')
+result = db.exec('select id, amount, memo, date(created_on) as date from expenses')
+result.each do |tuple|
+  id =     tuple['id']
+  amount = tuple['amount']
+  memo =   tuple['memo']
+  date =   tuple['date']
+
+  puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
+end
