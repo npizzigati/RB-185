@@ -12,7 +12,10 @@ def main(args)
   case args[0]
   when 'list'
     display_list(db)
+  when 'add'
+    process_add(db, args)
   end
+
 end
 
 def display_list(db)
@@ -25,6 +28,23 @@ def display_list(db)
 
     puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
   end
+end
+
+def process_add(db, args)
+  if args.size < 3
+    puts 'You must provide an amount and memo'
+    return
+  end
+
+  amount = args[1]
+  memo = args[2]
+
+  sql = <<~SQL
+    INSERT INTO expenses(amount, memo)
+      VALUES
+        (#{amount}, '#{memo}');
+  SQL
+  db.exec(sql)
 end
 
 def help_message
