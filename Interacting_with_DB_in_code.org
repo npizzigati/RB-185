@@ -1,0 +1,53 @@
+* CLI app
+:PROPERTIES:
+:header-args: sql :engine postgresql :dbuser nico :database cli_app
+:END:
+
+Add check constraint to make sure amount is greater than 0:
+
+#+BEGIN_SRC sql
+  ALTER TABLE expenses
+    ADD CHECK(amount > 0);
+#+END_SRC
+
+Add sample values:
+
+#+BEGIN_SRC sql
+
+  INSERT INTO expenses (amount, memo, created_on) VALUES (14.56, 'Pencils', NOW());
+
+  INSERT INTO expenses (amount, memo, created_on) VALUES (3.29, 'Coffee', NOW());
+
+  INSERT INTO expenses (amount, memo, created_on) VALUES (49.99, 'Text Editor', NOW());
+#+END_SRC
+
+#+RESULTS:
+| INSERT 0 1 |
+|------------|
+| INSERT 0 1 |
+| INSERT 0 1 |
+
+** ruby
+:PROPERTIES:
+:header-args: ruby :results output
+:END:
+
+
+#+BEGIN_SRC ruby
+  require 'pg'
+  db = PG.connect(dbname: 'cli_app')
+  result = db.exec('select id, amount, memo, date(created_on) as date from expenses')
+  result.each do |tuple|
+    id = tuple['id']
+    amount = tuple['amount']
+    memo =   tuple['memo']
+    date = tuple['date']
+
+    puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
+  end
+#+END_SRC
+
+#+RESULTS:
+:     1 | 2021-03-22 |      14.56 | Pencils
+:     2 | 2021-03-22 |       3.29 | Coffee
+:     3 | 2021-03-22 |      49.99 | Text Editor

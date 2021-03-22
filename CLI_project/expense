@@ -1,13 +1,44 @@
 #! /usr/bin/env ruby
 require 'pg'
 
-db = PG.connect(dbname: 'cli_app')
-result = db.exec('select id, amount, memo, date(created_on) as date from expenses')
-result.each do |tuple|
-  id =     tuple['id']
-  amount = tuple['amount']
-  memo =   tuple['memo']
-  date =   tuple['date']
+def main(args)
+  if args.size.zero?
+    puts help_message
+    exit(0)
+  end
 
-  puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
+  db = PG.connect(dbname: 'cli_app')
+
+  case args[0]
+  when 'list'
+    display_list(db)
+  end
 end
+
+def display_list(db)
+  result = db.exec('select id, amount, memo, date(created_on) as date from expenses')
+  result.each do |tuple|
+    id =     tuple['id']
+    amount = tuple['amount']
+    memo =   tuple['memo']
+    date =   tuple['date']
+
+    puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
+  end
+end
+
+def help_message
+  <<~MESSAGE
+    An expense recording system
+
+    Commands:
+
+    add AMOUNT MEMO [DATE] - record a new expense
+    clear - delete all expenses
+    list - list all expenses
+    delete NUMBER - remove expense with id NUMBER
+    search QUERY - list expenses with a matching memo field
+  MESSAGE
+end
+
+main(ARGV)
