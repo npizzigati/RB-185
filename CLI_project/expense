@@ -6,11 +6,34 @@ class DatabaseManager
   def initialize(args)
     @args = args
     @db = PG.connect(dbname: 'cli_app')
+    setup_schema unless expenses_table_exists?
   end
 
   def display_list
     result = db.exec('select id, amount, memo, date(created_on) as date from expenses')
     print_result(result)
+  end
+
+  def setup_schema
+    sql = <<~SQL
+      CREATE TABLE expenses(
+        id serial PRIMARY KEY,
+        amount decimal(8,2) NOT NULL check(amount > 0),
+        memo text,
+        created_on timestamp DEFAULT now());
+    SQL
+    db.exec(sql)
+  end
+
+  def expenses_table_exists?
+    sql = <<~SQL
+      SELECT COUNT(*) 
+        FROM information_schema.tables 
+       WHERE table_schema = 'public' AND table_name = 'expenses';
+    SQL
+    result = db.exec(sql)
+
+    result[0]['count'] == '1'
   end
 
   def print_result(result)
