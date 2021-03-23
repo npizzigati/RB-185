@@ -1,64 +1,134 @@
 #! /usr/bin/env ruby
 require 'pg'
+require 'io/console'
 
-def main(args)
-  if args.size.zero?
-    puts help_message
-    exit(0)
+class DatabaseManager
+  def initialize(args)
+    @args = args
+    @db = PG.connect(dbname: 'cli_app')
   end
 
-  db = PG.connect(dbname: 'cli_app')
-
-  case args[0]
-  when 'list'
-    display_list(db)
-  when 'add'
-    process_add(db, args)
+  def display_list
+    result = db.exec('select id, amount, memo, date(created_on) as date from expenses')
+    print_result(result)
   end
 
+  def print_result(result)
+    result.each do |tuple|
+      id =     tuple['id']
+      amount = tuple['amount']
+      memo =   tuple['memo']
+      date =   tuple['date']
+      puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
+    end
+  end
+
+  def process_add
+    if args.size < 3
+      puts 'You must provide an amount and memo'
+      return
+    end
+
+    amount = args[1]
+    memo = args[2]
+
+    sql = <<~SQL
+      INSERT INTO expenses(amount, memo)
+        VALUES
+          ($1, $2);
+    SQL
+    db.exec_params(sql, [amount, memo])
+  end
+
+  def search
+    if args.size < 2
+      puts 'You must provide a search string'
+      return
+    end
+
+    search_string = args[1]
+    sql = <<~SQL
+      SELECT id, date(created_on) AS date, amount, memo
+      FROM expenses
+      WHERE memo ilike concat('%', $1::text, '%')
+    SQL
+    result = db.exec_params(sql, [search_string])
+    print_result(result)
+  end
+
+  def delete
+    if args.size < 2
+      puts 'You must provide an id to delete'
+      return
+    end
+
+    id_to_delete = args[1]
+    sql = <<~SQL
+      DELETE FROM expenses
+       WHERE id = $1
+    SQL
+    result = db.exec_params(sql, [id_to_delete])
+    # puts result.cmd_tuples
+    if result.cmd_tuples == 1
+      puts "The following record has been deleted: id #{id_to_delete}"
+    else
+      puts "There is no expense with id #{id_to_delete}"
+    end
+  end
+
+  def clear
+    puts 'This will remove all expenses. Are you sure? (y/n)'
+    answer = IO::console.getch
+    return if answer != 'y'
+
+    sql = <<~SQL
+      DELETE FROM expenses
+    SQL
+    db.exec(sql)
+  end
+
+  private
+
+  attr_reader :db, :args
 end
 
-def display_list(db)
-  result = db.exec('select id, amount, memo, date(created_on) as date from expenses')
-  result.each do |tuple|
-    id =     tuple['id']
-    amount = tuple['amount']
-    memo =   tuple['memo']
-    date =   tuple['date']
+class CLI
+  def self.process_args(args)
+    if args.size.zero?
+      puts help_message
+      exit(0)
+    end
 
-    puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
+    db_manager = DatabaseManager.new(args)
+
+    case args[0]
+    when 'list'
+      db_manager.display_list
+    when 'add'
+      db_manager.process_add
+    when 'search'
+      db_manager.search
+    when 'delete'
+      db_manager.delete
+    when 'clear'
+      db_manager.clear
+    end
+  end
+
+  def self.help_message
+    <<~MESSAGE
+      An expense recording system
+
+      Commands:
+
+      add AMOUNT MEMO [DATE] - record a new expense
+      clear - delete all expenses
+      list - list all expenses
+      delete NUMBER - remove expense with id NUMBER
+      search QUERY - list expenses with a matching memo field
+    MESSAGE
   end
 end
 
-def process_add(db, args)
-  if args.size < 3
-    puts 'You must provide an amount and memo'
-    return
-  end
 
-  amount = args[1]
-  memo = args[2]
-
-  sql = <<~SQL
-    INSERT INTO expenses(amount, memo)
-      VALUES
-        (#{amount}, '#{memo}');
-  SQL
-  db.exec(sql)
-end
-
-def help_message
-  <<~MESSAGE
-    An expense recording system
-
-    Commands:
-
-    add AMOUNT MEMO [DATE] - record a new expense
-    clear - delete all expenses
-    list - list all expenses
-    delete NUMBER - remove expense with id NUMBER
-    search QUERY - list expenses with a matching memo field
-  MESSAGE
-end
-
-main(ARGV)
+CLI.process_args(ARGV)
