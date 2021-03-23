@@ -14,13 +14,22 @@ class DatabaseManager
   end
 
   def print_result(result)
+    items = result.ntuples
+    total = 0
+    if items == 0
+      puts 'There are no expenses'
+      return
+    end
     result.each do |tuple|
       id =     tuple['id']
       amount = tuple['amount']
       memo =   tuple['memo']
       date =   tuple['date']
       puts "#{id.rjust(5)} | #{date} | #{amount.rjust(10)} | #{memo}"
+      total += amount.to_f
     end
+    puts '-' * 50
+    puts 'Total' + format('%<total>26.2f', total: total)
   end
 
   def process_add
