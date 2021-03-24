@@ -6,7 +6,16 @@ class DatabasePersistence
   end
 
   def find_list(id)
-    session[:lists].find { |list| list[:id] == id }
+    # session[:lists].find { |list| list[:id] == id }
+    sql = <<~SQL
+      SELECT * FROM list
+      WHERE id = $1
+      LIMIT 1
+    SQL
+
+    result = db.exec_params(sql, [id])
+    tuple = result.first
+    { id: tuple['id'], name: tuple['name'], todos: [] }
   end
 
   def retrieve_lists
